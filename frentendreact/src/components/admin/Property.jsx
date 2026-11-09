@@ -1,49 +1,55 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "../../services/api";
 
-const INITIAL_FORM = {
+const EMPTY_FORM = {
     title: "",
     description: "",
-    propertyType: "apartment",
+    propertyType: "house",
+    propertySubType: "",
     listingType: "sale",
     price: "",
+    priceBreakup: "",
     areaSqft: "",
+    carpetAreaSqft: "",
     bedrooms: "",
     bathrooms: "",
+    balconies: "",
+    furnishing: "",
+    facing: "",
+    transactionType: "",
+    availability: "",
+    constructionAge: "",
+    ownershipType: "",
+    parkingSpaces: "",
+    parkingType: "",
+    projectName: "",
+    locality: "",
     address: "",
     city: "",
     state: "",
     pincode: "",
     latitude: "",
     longitude: "",
+    reraRegistered: "",
+    reraNumber: "",
     amenities: "",
-    status: "pending_approval",
 };
 
-const AdminProperties = () => {
+const AgentProperties = () => {
     const [properties, setProperties] = useState([]);
-
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
-    const [statusUpdatingId, setStatusUpdatingId] = useState(null);
-
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
-
-    const [showModal, setShowModal] = useState(false);
-    const [showViewModal, setShowViewModal] = useState(false);
-
+    const [showForm, setShowForm] = useState(false);
+    const [viewing, setViewing] = useState(null);
     const [editingId, setEditingId] = useState(null);
-    const [viewingProperty, setViewingProperty] = useState(null);
-
+    const [form, setForm] = useState({ ...EMPTY_FORM });
     const [search, setSearch] = useState("");
     const [appliedSearch, setAppliedSearch] = useState("");
-
     const [status, setStatus] = useState("");
-
     const [page, setPage] = useState(1);
-
     const [refreshKey, setRefreshKey] = useState(0);
 
     const [pagination, setPagination] = useState({
@@ -53,49 +59,47 @@ const AdminProperties = () => {
         totalPages: 1,
     });
 
-    const [form, setForm] = useState(INITIAL_FORM);
-
-    // --------------------------------------------------
-    // Load properties
-    // --------------------------------------------------
-
     const loadProperties = useCallback(async () => {
+        setLoading(true);
+        setError("");
+
         try {
-            setLoading(true);
-            setError("");
-
-            const response = await api.get("/properties/admin/all", {
-                params: {
-                    page,
-                    limit: 10,
-                    search: appliedSearch,
-                    status,
-                },
-            });
-
-            const result = response.data;
+            const { data: result } = await api.get(
+                "/properties/my-listings",
+                {
+                    params: {
+                        page,
+                        limit: 10,
+                        search: appliedSearch,
+                        status,
+                    },
+                }
+            );
 
             const rows = Array.isArray(result.data)
                 ? result.data
+                : Array.isArray(result.properties)
+                ? result.properties
+                : Array.isArray(result.data?.properties)
+                ? result.data.properties
                 : [];
+
+            const pg = result.pagination || result.data?.pagination || {};
 
             setProperties(rows);
 
             setPagination({
-                total: Number(result.pagination?.total || rows.length),
-                page: Number(result.pagination?.page || page),
-                limit: Number(result.pagination?.limit || 10),
-                totalPages: Number(
-                    result.pagination?.totalPages || 1
-                ),
+                total: Number(pg.total ?? rows.length),
+                page: Number(pg.page ?? page),
+                limit: Number(pg.limit ?? 10),
+                totalPages: Number(pg.totalPages ?? 1),
             });
         } catch (err) {
+            setProperties([]);
             setError(
                 err.response?.data?.message ||
-                    "Unable to load properties."
+                "Unable to load your properties."
             );
-
-            setProperties([]);
         } finally {
             setLoading(false);
         }
@@ -105,265 +109,152 @@ const AdminProperties = () => {
         loadProperties();
     }, [loadProperties]);
 
-    // --------------------------------------------------
-    // Search
-    // --------------------------------------------------
-
-    const handleSearch = (e) => {
-        e.preventDefault();
-
-        setPage(1);
-        setAppliedSearch(search.trim());
-    };
-
-    // --------------------------------------------------
-    // Status filter
-    // --------------------------------------------------
-
-    const handleStatusChange = (e) => {
-        setStatus(e.target.value);
-        setPage(1);
-    };
-
-    // --------------------------------------------------
-    // Form
-    // --------------------------------------------------
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-
-        setForm((previous) => ({
-            ...previous,
-            [name]: value,
+    const changeForm = (e) => {
+        setForm((old) => ({
+            ...old,
+            [e.target.name]: e.target.value,
         }));
     };
 
-    // --------------------------------------------------
-    // Create modal
-    // --------------------------------------------------
-
-    const openCreateModal = () => {
+    const openCreate = () => {
         setEditingId(null);
-        setForm({ ...INITIAL_FORM });
-
+        setForm({ ...EMPTY_FORM });
         setError("");
-        setSuccess("");
-
-        setShowModal(true);
+        setShowForm(true);
     };
 
-    // --------------------------------------------------
-    // Edit modal
-    // --------------------------------------------------
+    const openEdit = (p) => {
+        setEditingId(p.id);
 
-    const openEditModal = (property) => {
-        setEditingId(property.id);
+        const updatedForm = {};
 
-        setForm({
-            title: property.title || "",
-            description: property.description || "",
-            propertyType: property.propertyType || "apartment",
-            listingType: property.listingType || "sale",
-            price: property.price || "",
-            areaSqft: property.areaSqft || "",
-            bedrooms: property.bedrooms || "",
-            bathrooms: property.bathrooms || "",
-            address: property.address || "",
-            city: property.city || "",
-            state: property.state || "",
-            pincode: property.pincode || "",
-            latitude: property.latitude || "",
-            longitude: property.longitude || "",
-            amenities: Array.isArray(property.amenities)
-                ? property.amenities.join(", ")
-                : property.amenities || "",
-            status: property.status || "pending_approval",
+        Object.keys(EMPTY_FORM).forEach((key) => {
+            if (key === "amenities") {
+                updatedForm[key] = Array.isArray(p.amenities)
+                    ? p.amenities.join(", ")
+                    : p.amenities || "";
+            } else if (key === "reraRegistered") {
+                updatedForm[key] =
+                    p.reraRegistered === true
+                        ? "true"
+                        : p.reraRegistered === false
+                        ? "false"
+                        : "";
+            } else {
+                updatedForm[key] = p[key] ?? EMPTY_FORM[key];
+            }
         });
 
+        setForm(updatedForm);
         setError("");
-        setSuccess("");
-
-        setShowModal(true);
+        setShowForm(true);
     };
 
-    // --------------------------------------------------
-    // View property
-    // --------------------------------------------------
-
-    const openViewModal = (property) => {
-        setViewingProperty(property);
-        setShowViewModal(true);
-    };
-
-    const closeModal = () => {
-        if (!saving) {
-            setShowModal(false);
-        }
-    };
-
-    const closeViewModal = () => {
-        setShowViewModal(false);
-        setViewingProperty(null);
-    };
-
-    // --------------------------------------------------
-    // Create / Update
-    // --------------------------------------------------
-
-    const handleSubmit = async (e) => {
+    const submitForm = async (e) => {
         e.preventDefault();
 
+        setSaving(true);
         setError("");
         setSuccess("");
-        setSaving(true);
+
+        const numericOrNull = (value) =>
+            value === "" || value === null ? null : Number(value);
+
+        const payload = {
+            ...form,
+
+            title: form.title.trim(),
+            description: form.description.trim(),
+            address: form.address.trim(),
+            city: form.city.trim(),
+            state: form.state.trim(),
+            pincode: form.pincode.trim(),
+
+            price: Number(form.price),
+
+            areaSqft: numericOrNull(form.areaSqft),
+            carpetAreaSqft: numericOrNull(form.carpetAreaSqft),
+            bedrooms: numericOrNull(form.bedrooms),
+            bathrooms: numericOrNull(form.bathrooms),
+            balconies: numericOrNull(form.balconies),
+            parkingSpaces: numericOrNull(form.parkingSpaces),
+            latitude: numericOrNull(form.latitude),
+            longitude: numericOrNull(form.longitude),
+
+            reraRegistered:
+                form.reraRegistered === ""
+                    ? null
+                    : form.reraRegistered === "true",
+
+            amenities: form.amenities
+                ? form.amenities
+                      .split(",")
+                      .map((x) => x.trim())
+                      .filter(Boolean)
+                : [],
+        };
+
+        delete payload.status;
 
         try {
-            const payload = {
-                title: form.title.trim(),
-                description: form.description.trim(),
-
-                propertyType: form.propertyType,
-                listingType: form.listingType,
-
-                price: form.price,
-
-                areaSqft: form.areaSqft || null,
-                bedrooms: form.bedrooms || null,
-                bathrooms: form.bathrooms || null,
-
-                address: form.address.trim(),
-                city: form.city.trim(),
-                state: form.state.trim(),
-                pincode: form.pincode.trim(),
-
-                latitude: form.latitude || null,
-                longitude: form.longitude || null,
-
-                amenities: form.amenities
-                    ? form.amenities
-                          .split(",")
-                          .map((item) => item.trim())
-                          .filter(Boolean)
-                    : [],
-
-                status: form.status,
-            };
-
             if (editingId !== null) {
-                await api.put(
-                    `/properties/admin/${editingId}`,
-                    payload
-                );
-
+                await api.put(`/properties/${editingId}`, payload);
                 setSuccess(
-                    "Property updated successfully."
+                    "Property updated and submitted for approval again."
                 );
             } else {
                 await api.post("/properties", payload);
-
                 setSuccess(
-                    "Property created successfully."
+                    "Property created and submitted for approval."
                 );
             }
 
-            setShowModal(false);
+            setShowForm(false);
             setEditingId(null);
-            setForm({ ...INITIAL_FORM });
-
+            setForm({ ...EMPTY_FORM });
             setPage(1);
-
-            setRefreshKey((key) => key + 1);
+            setRefreshKey((n) => n + 1);
         } catch (err) {
             setError(
                 err.response?.data?.message ||
-                    "Unable to save property."
+                "Unable to save property."
             );
         } finally {
             setSaving(false);
         }
     };
 
-    // --------------------------------------------------
-    // Update property status
-    // --------------------------------------------------
-
-    const updateStatus = async (propertyId, newStatus) => {
-        setError("");
-        setSuccess("");
-
-        setStatusUpdatingId(propertyId);
-
-        try {
-            await api.patch(
-                `/properties/admin/${propertyId}/status`,
-                {
-                    status: newStatus,
-                }
-            );
-
-            setSuccess(
-                `Property ${newStatus.replace("_", " ")} successfully.`
-            );
-
-            setRefreshKey((key) => key + 1);
-        } catch (err) {
-            setError(
-                err.response?.data?.message ||
-                    "Unable to update property status."
-            );
-        } finally {
-            setStatusUpdatingId(null);
-        }
-    };
-
-    // --------------------------------------------------
-    // Delete
-    // --------------------------------------------------
-
-    const handleDelete = async (id) => {
-        if (
-            !window.confirm(
-                "Are you sure you want to delete this property?"
-            )
-        ) {
+    const deleteProperty = async (p) => {
+        if (!window.confirm(`Delete "${p.title}"? This cannot be undone.`)) {
             return;
         }
 
+        setDeletingId(p.id);
         setError("");
         setSuccess("");
 
-        setDeletingId(id);
-
         try {
-            await api.delete(
-                `/properties/admin/${id}`
-            );
+            await api.delete(`/properties/${p.id}`);
 
-            setSuccess(
-                "Property deleted successfully."
-            );
+            setSuccess("Property deleted successfully.");
 
             if (properties.length === 1 && page > 1) {
-                setPage((current) => current - 1);
+                setPage((n) => n - 1);
             } else {
-                setRefreshKey((key) => key + 1);
+                setRefreshKey((n) => n + 1);
             }
         } catch (err) {
             setError(
                 err.response?.data?.message ||
-                    "Unable to delete property."
+                "Unable to delete property."
             );
         } finally {
             setDeletingId(null);
         }
     };
 
-    // --------------------------------------------------
-    // Status badge
-    // --------------------------------------------------
-
-    const getStatusBadge = (propertyStatus) => {
-        const classes = {
+    const statusBadge = (value) => {
+        const cls = {
             draft: "text-bg-secondary",
             pending_approval: "text-bg-warning",
             active: "text-bg-success",
@@ -371,7 +262,7 @@ const AdminProperties = () => {
             rejected: "text-bg-danger",
         };
 
-        const labels = {
+        const label = {
             draft: "Draft",
             pending_approval: "Pending Approval",
             active: "Active",
@@ -380,103 +271,70 @@ const AdminProperties = () => {
         };
 
         return (
-            <span
-                className={`badge ${
-                    classes[propertyStatus] ||
-                    "text-bg-secondary"
-                }`}
-            >
-                {labels[propertyStatus] ||
-                    propertyStatus ||
-                    "Unknown"}
+            <span className={`badge ${cls[value] || "text-bg-secondary"}`}>
+                {label[value] || value || "Unknown"}
             </span>
         );
     };
 
-    // --------------------------------------------------
-    // Property type
-    // --------------------------------------------------
-
-    const getPropertyType = (type) => {
-        const labels = {
+    const propertyTypeLabel = (value) =>
+        ({
             apartment: "Apartment",
             house: "House",
             plot: "Plot",
             commercial: "Commercial",
-        };
+        }[value] || value || "-");
 
-        return labels[type] || type || "-";
-    };
-
-    // --------------------------------------------------
-    // Listing type
-    // --------------------------------------------------
-
-    const getListingType = (type) => {
-        return type === "rent" ? "Rent" : "Sale";
-    };
-
-    // --------------------------------------------------
-    // Format price
-    // --------------------------------------------------
-
-    const formatPrice = (price) => {
-        if (!price) {
+    const price = (value) => {
+        if (value === null || value === undefined || value === "") {
             return "-";
         }
 
-        const number = Number(price);
+        const n = Number(value);
 
-        if (Number.isNaN(number)) {
-            return price;
-        }
-
-        return new Intl.NumberFormat("en-IN", {
-            style: "currency",
-            currency: "INR",
-            maximumFractionDigits: 0,
-        }).format(number);
+        return Number.isNaN(n)
+            ? value
+            : new Intl.NumberFormat("en-IN", {
+                  style: "currency",
+                  currency: "INR",
+                  maximumFractionDigits: 0,
+              }).format(n);
     };
+
+    const detail = (label, value) => (
+        <div className="col-md-6">
+            <strong>{label}:</strong>
+            <div>{value === null || value === undefined || value === "" ? "-" : value}</div>
+        </div>
+    );
 
     return (
         <div className="properties-page">
-
-            {/* Page Heading */}
-
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-
                 <div>
-                    <h3 className="fw-bold mb-1">
-                        Property Management
-                    </h3>
-
+                    <h3 className="fw-bold mb-1">My Properties</h3>
                     <p className="text-muted mb-0">
-                        Create, manage and approve properties.
+                        Manage your listings and track their approval status.
                     </p>
                 </div>
 
                 <button
-                    type="button"
                     className="btn btn-primary"
-                    onClick={openCreateModal}
+                    type="button"
+                    onClick={openCreate}
                 >
-                    <i className="bi bi-plus-lg me-2"></i>
+                    <i className="bi bi-plus-lg me-2" />
                     Add Property
                 </button>
-
             </div>
-
-            {/* Alerts */}
 
             {error && (
                 <div className="alert alert-danger alert-dismissible">
                     {error}
-
                     <button
-                        type="button"
                         className="btn-close"
+                        type="button"
                         onClick={() => setError("")}
-                        aria-label="Close"
                     />
                 </div>
             )}
@@ -484,1263 +342,792 @@ const AdminProperties = () => {
             {success && (
                 <div className="alert alert-success alert-dismissible">
                     {success}
-
                     <button
-                        type="button"
                         className="btn-close"
+                        type="button"
                         onClick={() => setSuccess("")}
-                        aria-label="Close"
                     />
                 </div>
             )}
 
-            {/* Search / Filter */}
-
+            {/* Search and filters */}
             <div className="card border-0 shadow-sm mb-4">
-
                 <div className="card-body">
-
                     <form
-                        onSubmit={handleSearch}
                         className="row g-3"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            setPage(1);
+                            setAppliedSearch(search.trim());
+                        }}
                     >
-
-                        <div className="col-12 col-md-5">
-
-                            <label className="form-label">
-                                Search properties
-                            </label>
-
+                        <div className="col-md-6">
+                            <label className="form-label">Search properties</label>
                             <input
-                                type="search"
                                 className="form-control"
-                                placeholder="Title, city, address..."
                                 value={search}
-                                onChange={(e) =>
-                                    setSearch(e.target.value)
-                                }
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Title, city, address..."
                             />
-
                         </div>
 
-                        <div className="col-12 col-md-4">
-
-                            <label className="form-label">
-                                Filter by status
-                            </label>
-
+                        <div className="col-md-3">
+                            <label className="form-label">Status</label>
                             <select
                                 className="form-select"
                                 value={status}
-                                onChange={handleStatusChange}
+                                onChange={(e) => {
+                                    setStatus(e.target.value);
+                                    setPage(1);
+                                }}
                             >
-                                <option value="">
-                                    All Statuses
-                                </option>
-
-                                <option value="draft">
-                                    Draft
-                                </option>
-
-                                <option value="pending_approval">
-                                    Pending Approval
-                                </option>
-
-                                <option value="active">
-                                    Active
-                                </option>
-
-                                <option value="sold">
-                                    Sold
-                                </option>
-
-                                <option value="rejected">
-                                    Rejected
-                                </option>
+                                <option value="">All statuses</option>
+                                <option value="draft">Draft</option>
+                                <option value="pending_approval">Pending Approval</option>
+                                <option value="active">Active</option>
+                                <option value="sold">Sold</option>
+                                <option value="rejected">Rejected</option>
                             </select>
-
                         </div>
 
-                        <div className="col-12 col-md-3 d-flex align-items-end">
-
-                            <button
-                                type="submit"
-                                className="btn btn-dark w-100"
-                            >
-                                <i className="bi bi-search me-2"></i>
+                        <div className="col-md-3 d-flex align-items-end">
+                            <button className="btn btn-dark w-100" type="submit">
+                                <i className="bi bi-search me-2" />
                                 Search
                             </button>
-
                         </div>
-
                     </form>
-
                 </div>
-
             </div>
 
-            {/* Property Table */}
-
+            {/* Properties table */}
             <div className="card border-0 shadow-sm">
-
-                <div className="card-header bg-white py-3">
-
-                    <div className="d-flex justify-content-between align-items-center">
-
-                        <h5 className="mb-0">
-                            All Properties
-                        </h5>
-
-                        <span className="text-muted">
-                            Total: {pagination.total}
-                        </span>
-
-                    </div>
-
+                <div className="card-header bg-white py-3 d-flex justify-content-between">
+                    <h5 className="mb-0">My Listings</h5>
+                    <span className="text-muted">Total: {pagination.total}</span>
                 </div>
 
                 {loading ? (
                     <div className="text-center py-5">
-
-                        <div
-                            className="spinner-border text-primary"
-                            role="status"
-                        />
-
-                        <p className="text-muted mt-3 mb-0">
-                            Loading properties...
-                        </p>
-
+                        <div className="spinner-border text-primary" />
+                        <p className="text-muted mt-3">Loading properties...</p>
                     </div>
                 ) : (
                     <div className="table-responsive">
-
                         <table className="table table-hover align-middle mb-0">
-
                             <thead className="table-light">
-
                                 <tr>
                                     <th>ID</th>
                                     <th>Property</th>
-                                    <th>Dealer</th>
                                     <th>Type</th>
                                     <th>Price</th>
                                     <th>Location</th>
                                     <th>Status</th>
-                                    <th className="text-end">
-                                        Actions
-                                    </th>
+                                    <th className="text-end">Actions</th>
                                 </tr>
-
                             </thead>
 
                             <tbody>
-
-                                {properties.map((property) => (
-
-                                    <tr key={property.id}>
-
+                                {properties.map((p) => (
+                                    <tr key={p.id}>
+                                        <td>#{p.id}</td>
                                         <td>
-                                            #{property.id}
-                                        </td>
-
-                                        <td>
-                                            <div className="fw-semibold">
-                                                {property.title}
-                                            </div>
-
+                                            <div className="fw-semibold">{p.title}</div>
                                             <small className="text-muted">
-                                                {getListingType(
-                                                    property.listingType
-                                                )}
+                                                {p.listingType === "rent" ? "Rent" : "Sale"}
                                             </small>
                                         </td>
-
                                         <td>
-                                            <div className="fw-semibold">
-                                                {property.dealer?.name ||
-                                                    "-"}
-                                            </div>
-
-                                            {property.dealer
-                                                ?.dealerProfile
-                                                ?.agencyName && (
-                                                <small className="text-muted">
-                                                    {
-                                                        property.dealer
-                                                            .dealerProfile
-                                                            .agencyName
-                                                    }
-                                                </small>
-                                            )}
+                                            {p.propertySubType || propertyTypeLabel(p.propertyType)}
                                         </td>
-
+                                        <td>{price(p.price)}</td>
                                         <td>
-                                            {getPropertyType(
-                                                property.propertyType
-                                            )}
-                                        </td>
-
-                                        <td>
-                                            {formatPrice(
-                                                property.price
-                                            )}
-                                        </td>
-
-                                        <td>
-                                            <div>
-                                                {property.city || "-"}
-                                            </div>
-
-                                            <small className="text-muted">
-                                                {property.state || ""}
+                                            {p.city || "-"}
+                                            <small className="d-block text-muted">
+                                                {p.state || ""}
                                             </small>
                                         </td>
-
+                                        <td>{statusBadge(p.status)}</td>
                                         <td>
-                                            {getStatusBadge(
-                                                property.status
-                                            )}
-                                        </td>
-
-                                        <td>
-
                                             <div className="d-flex justify-content-end flex-wrap gap-2">
-
-                                                {/* View */}
-
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-outline-secondary"
-                                                    onClick={() =>
-                                                        openViewModal(
-                                                            property
-                                                        )
-                                                    }
+                                                    onClick={() => setViewing(p)}
                                                 >
-                                                    <i className="bi bi-eye me-1"></i>
+                                                    <i className="bi bi-eye me-1" />
                                                     View
                                                 </button>
-
-                                                {/* Edit */}
 
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-outline-primary"
-                                                    onClick={() =>
-                                                        openEditModal(
-                                                            property
-                                                        )
-                                                    }
+                                                    onClick={() => openEdit(p)}
                                                 >
+                                                    <i className="bi bi-pencil me-1" />
                                                     Edit
                                                 </button>
-
-                                                {/* Approve */}
-
-                                                {property.status ===
-                                                    "pending_approval" && (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-outline-success"
-                                                        disabled={
-                                                            statusUpdatingId ===
-                                                            property.id
-                                                        }
-                                                        onClick={() =>
-                                                            updateStatus(
-                                                                property.id,
-                                                                "active"
-                                                            )
-                                                        }
-                                                    >
-                                                        {statusUpdatingId ===
-                                                        property.id ? (
-                                                            <>
-                                                                <span className="spinner-border spinner-border-sm me-1" />
-                                                                Updating
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <i className="bi bi-check-lg me-1"></i>
-                                                                Approve
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                )}
-
-                                                {/* Reject */}
-
-                                                {property.status ===
-                                                    "pending_approval" && (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-outline-danger"
-                                                        disabled={
-                                                            statusUpdatingId ===
-                                                            property.id
-                                                        }
-                                                        onClick={() =>
-                                                            updateStatus(
-                                                                property.id,
-                                                                "rejected"
-                                                            )
-                                                        }
-                                                    >
-                                                        Reject
-                                                    </button>
-                                                )}
-
-                                                {/* Unpublish */}
-
-                                                {property.status ===
-                                                    "active" && (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-outline-warning"
-                                                        disabled={
-                                                            statusUpdatingId ===
-                                                            property.id
-                                                        }
-                                                        onClick={() =>
-                                                            updateStatus(
-                                                                property.id,
-                                                                "draft"
-                                                            )
-                                                        }
-                                                    >
-                                                        Unpublish
-                                                    </button>
-                                                )}
-
-                                                {/* Delete */}
 
                                                 <button
                                                     type="button"
                                                     className="btn btn-sm btn-outline-danger"
-                                                    disabled={
-                                                        deletingId ===
-                                                        property.id
-                                                    }
-                                                    onClick={() =>
-                                                        handleDelete(
-                                                            property.id
-                                                        )
-                                                    }
+                                                    disabled={deletingId === p.id}
+                                                    onClick={() => deleteProperty(p)}
                                                 >
-                                                    {deletingId ===
-                                                    property.id
-                                                        ? "Deleting..."
-                                                        : "Delete"}
+                                                    {deletingId === p.id ? "Deleting..." : "Delete"}
                                                 </button>
-
                                             </div>
-
                                         </td>
-
                                     </tr>
-
                                 ))}
 
-                                {properties.length === 0 && (
-
+                                {!properties.length && (
                                     <tr>
-
-                                        <td
-                                            colSpan="8"
-                                            className="text-center py-5 text-muted"
-                                        >
-                                            No properties found.
+                                        <td colSpan="7" className="text-center text-muted py-5">
+                                            No properties found. Add your first listing.
                                         </td>
-
                                     </tr>
-
                                 )}
-
                             </tbody>
-
                         </table>
-
                     </div>
                 )}
 
-                {/* Pagination */}
+                {!loading && pagination.totalPages > 1 && (
+                    <div className="card-footer bg-white d-flex justify-content-between align-items-center">
+                        <button
+                            className="btn btn-outline-secondary btn-sm"
+                            disabled={page <= 1}
+                            onClick={() => setPage((n) => n - 1)}
+                        >
+                            Previous
+                        </button>
 
-                {!loading &&
-                    pagination.totalPages > 1 && (
+                        <span className="small">
+                            Page {pagination.page} of {pagination.totalPages}
+                        </span>
 
-                        <div className="card-footer bg-white">
-
-                            <div className="d-flex justify-content-between align-items-center">
-
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    disabled={page <= 1}
-                                    onClick={() =>
-                                        setPage(
-                                            (current) =>
-                                                current - 1
-                                        )
-                                    }
-                                >
-                                    Previous
-                                </button>
-
-                                <span className="small">
-                                    Page {pagination.page} of{" "}
-                                    {pagination.totalPages}
-                                </span>
-
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    disabled={
-                                        page >=
-                                        pagination.totalPages
-                                    }
-                                    onClick={() =>
-                                        setPage(
-                                            (current) =>
-                                                current + 1
-                                        )
-                                    }
-                                >
-                                    Next
-                                </button>
-
-                            </div>
-
-                        </div>
-                    )}
-
+                        <button
+                            className="btn btn-outline-secondary btn-sm"
+                            disabled={page >= pagination.totalPages}
+                            onClick={() => setPage((n) => n + 1)}
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* ======================================================
-                CREATE / EDIT MODAL
-            ====================================================== */}
-
-            {showModal && (
-                <>
+            {/* Add / Edit Property Modal */}
+            {showForm && (
+                <div
+                    className="modal fade show d-block"
+                    role="dialog"
+                    aria-modal="true"
+                    tabIndex="-1"
+                    style={{ background: "rgba(0,0,0,0.5)", zIndex: 1055 }}
+                    onClick={() => !saving && setShowForm(false)}
+                >
                     <div
-                        className="modal-backdrop fade show"
-                        style={{ zIndex: 1050 }}
-                        onClick={closeModal}
-                    />
-
-                    <div
-                        className="modal fade show d-block"
-                        tabIndex="-1"
-                        role="dialog"
-                        aria-modal="true"
-                        style={{ zIndex: 1055 }}
-                        onClick={closeModal}
+                        className="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable"
+                        onClick={(e) => e.stopPropagation()}
                     >
-
-                        <div
-                            className="modal-dialog modal-dialog-centered modal-xl"
-                            onClick={(e) =>
-                                e.stopPropagation()
-                            }
-                        >
-
-                            <div className="modal-content">
-
-                                <form onSubmit={handleSubmit}>
-
-                                    <div className="modal-header">
-
-                                        <h5 className="modal-title">
-                                            {editingId !== null
-                                                ? "Edit Property"
-                                                : "Add New Property"}
-                                        </h5>
-
-                                        <button
-                                            type="button"
-                                            className="btn-close"
-                                            onClick={closeModal}
-                                            disabled={saving}
-                                            aria-label="Close"
-                                        />
-
-                                    </div>
-
-                                    <div className="modal-body">
-
-                                        <div className="row g-3">
-
-                                            {/* Title */}
-
-                                            <div className="col-md-8">
-
-                                                <label className="form-label">
-                                                    Property Title *
-                                                </label>
-
-                                                <input
-                                                    type="text"
-                                                    name="title"
-                                                    className="form-control"
-                                                    value={form.title}
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    maxLength={255}
-                                                    required
-                                                />
-
-                                            </div>
-
-                                            {/* Property Type */}
-
-                                            <div className="col-md-2">
-
-                                                <label className="form-label">
-                                                    Property Type *
-                                                </label>
-
-                                                <select
-                                                    name="propertyType"
-                                                    className="form-select"
-                                                    value={
-                                                        form.propertyType
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    required
-                                                >
-                                                    <option value="apartment">
-                                                        Apartment
-                                                    </option>
-
-                                                    <option value="house">
-                                                        House
-                                                    </option>
-
-                                                    <option value="plot">
-                                                        Plot
-                                                    </option>
-
-                                                    <option value="commercial">
-                                                        Commercial
-                                                    </option>
-                                                </select>
-
-                                            </div>
-
-                                            {/* Listing Type */}
-
-                                            <div className="col-md-2">
-
-                                                <label className="form-label">
-                                                    Listing *
-                                                </label>
-
-                                                <select
-                                                    name="listingType"
-                                                    className="form-select"
-                                                    value={
-                                                        form.listingType
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    required
-                                                >
-                                                    <option value="sale">
-                                                        Sale
-                                                    </option>
-
-                                                    <option value="rent">
-                                                        Rent
-                                                    </option>
-                                                </select>
-
-                                            </div>
-
-                                            {/* Price */}
-
-                                            <div className="col-md-3">
-
-                                                <label className="form-label">
-                                                    Price *
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    name="price"
-                                                    className="form-control"
-                                                    value={form.price}
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    min="0"
-                                                    required
-                                                />
-
-                                            </div>
-
-                                            {/* Area */}
-
-                                            <div className="col-md-3">
-
-                                                <label className="form-label">
-                                                    Area Sqft
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    name="areaSqft"
-                                                    className="form-control"
-                                                    value={
-                                                        form.areaSqft
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    min="0"
-                                                />
-
-                                            </div>
-
-                                            {/* Bedrooms */}
-
-                                            <div className="col-md-3">
-
-                                                <label className="form-label">
-                                                    Bedrooms
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    name="bedrooms"
-                                                    className="form-control"
-                                                    value={
-                                                        form.bedrooms
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    min="0"
-                                                />
-
-                                            </div>
-
-                                            {/* Bathrooms */}
-
-                                            <div className="col-md-3">
-
-                                                <label className="form-label">
-                                                    Bathrooms
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    name="bathrooms"
-                                                    className="form-control"
-                                                    value={
-                                                        form.bathrooms
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    min="0"
-                                                />
-
-                                            </div>
-
-                                            {/* Address */}
-
-                                            <div className="col-12">
-
-                                                <label className="form-label">
-                                                    Address *
-                                                </label>
-
-                                                <textarea
-                                                    name="address"
-                                                    className="form-control"
-                                                    rows="2"
-                                                    value={
-                                                        form.address
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    required
-                                                />
-
-                                            </div>
-
-                                            {/* City */}
-
-                                            <div className="col-md-4">
-
-                                                <label className="form-label">
-                                                    City *
-                                                </label>
-
-                                                <input
-                                                    type="text"
-                                                    name="city"
-                                                    className="form-control"
-                                                    value={form.city}
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    required
-                                                />
-
-                                            </div>
-
-                                            {/* State */}
-
-                                            <div className="col-md-4">
-
-                                                <label className="form-label">
-                                                    State *
-                                                </label>
-
-                                                <input
-                                                    type="text"
-                                                    name="state"
-                                                    className="form-control"
-                                                    value={form.state}
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    required
-                                                />
-
-                                            </div>
-
-                                            {/* Pincode */}
-
-                                            <div className="col-md-4">
-
-                                                <label className="form-label">
-                                                    Pincode
-                                                </label>
-
-                                                <input
-                                                    type="text"
-                                                    name="pincode"
-                                                    className="form-control"
-                                                    value={
-                                                        form.pincode
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                    maxLength={20}
-                                                />
-
-                                            </div>
-
-                                            {/* Latitude */}
-
-                                            <div className="col-md-6">
-
-                                                <label className="form-label">
-                                                    Latitude
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    step="any"
-                                                    name="latitude"
-                                                    className="form-control"
-                                                    value={
-                                                        form.latitude
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                />
-
-                                            </div>
-
-                                            {/* Longitude */}
-
-                                            <div className="col-md-6">
-
-                                                <label className="form-label">
-                                                    Longitude
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    step="any"
-                                                    name="longitude"
-                                                    className="form-control"
-                                                    value={
-                                                        form.longitude
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                />
-
-                                            </div>
-
-                                            {/* Amenities */}
-
-                                            <div className="col-12">
-
-                                                <label className="form-label">
-                                                    Amenities
-                                                </label>
-
-                                                <input
-                                                    type="text"
-                                                    name="amenities"
-                                                    className="form-control"
-                                                    placeholder="Parking, Swimming Pool, Gym, Security"
-                                                    value={
-                                                        form.amenities
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                />
-
-                                                <small className="text-muted">
-                                                    Separate amenities
-                                                    with commas.
-                                                </small>
-
-                                            </div>
-
-                                            {/* Description */}
-
-                                            <div className="col-12">
-
-                                                <label className="form-label">
-                                                    Description
-                                                </label>
-
-                                                <textarea
-                                                    name="description"
-                                                    className="form-control"
-                                                    rows="4"
-                                                    value={
-                                                        form.description
-                                                    }
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                />
-
-                                            </div>
-
-                                            {/* Status */}
-
-                                            <div className="col-md-4">
-
-                                                <label className="form-label">
-                                                    Status
-                                                </label>
-
-                                                <select
-                                                    name="status"
-                                                    className="form-select"
-                                                    value={form.status}
-                                                    onChange={
-                                                        handleChange
-                                                    }
-                                                >
-                                                    <option value="draft">
-                                                        Draft
-                                                    </option>
-
-                                                    <option value="pending_approval">
-                                                        Pending Approval
-                                                    </option>
-
-                                                    <option value="active">
-                                                        Active
-                                                    </option>
-
-                                                    <option value="sold">
-                                                        Sold
-                                                    </option>
-
-                                                    <option value="rejected">
-                                                        Rejected
-                                                    </option>
-                                                </select>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                    <div className="modal-footer">
-
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary"
-                                            onClick={closeModal}
-                                            disabled={saving}
-                                        >
-                                            Cancel
-                                        </button>
-
-                                        <button
-                                            type="submit"
-                                            className="btn btn-primary"
-                                            disabled={saving}
-                                        >
-                                            {saving ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2" />
-                                                    Saving...
-                                                </>
-                                            ) : editingId !== null ? (
-                                                "Update Property"
-                                            ) : (
-                                                "Create Property"
-                                            )}
-                                        </button>
-
-                                    </div>
-
-                                </form>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-                </>
-            )}
-
-            {/* ======================================================
-                VIEW MODAL
-            ====================================================== */}
-
-            {showViewModal && viewingProperty && (
-                <>
-                    <div
-                        className="modal-backdrop fade show"
-                        style={{ zIndex: 1050 }}
-                        onClick={closeViewModal}
-                    />
-
-                    <div
-                        className="modal fade show d-block"
-                        tabIndex="-1"
-                        role="dialog"
-                        aria-modal="true"
-                        style={{ zIndex: 1055 }}
-                        onClick={closeViewModal}
-                    >
-
-                        <div
-                            className="modal-dialog modal-dialog-centered modal-lg"
-                            onClick={(e) =>
-                                e.stopPropagation()
-                            }
-                        >
-
-                            <div className="modal-content">
-
+                        <div className="modal-content">
+                            <form onSubmit={submitForm}>
                                 <div className="modal-header">
-
                                     <h5 className="modal-title">
-                                        Property Details
+                                        {editingId !== null ? "Edit Property" : "Add Property"}
                                     </h5>
-
                                     <button
                                         type="button"
                                         className="btn-close"
-                                        onClick={closeViewModal}
-                                        aria-label="Close"
+                                        disabled={saving}
+                                        onClick={() => setShowForm(false)}
                                     />
-
                                 </div>
 
                                 <div className="modal-body">
-
-                                    <div className="row g-3">
-
-                                        <div className="col-md-8">
-
-                                            <h4 className="fw-bold">
-                                                {
-                                                    viewingProperty.title
-                                                }
-                                            </h4>
-
-                                            <p className="text-muted mb-2">
-                                                {
-                                                    viewingProperty.description ||
-                                                    "No description available."
-                                                }
-                                            </p>
-
-                                        </div>
-
-                                        <div className="col-md-4 text-md-end">
-
-                                            {getStatusBadge(
-                                                viewingProperty.status
-                                            )}
-
-                                        </div>
-
-                                        <div className="col-md-6">
-
-                                            <strong>
-                                                Property Type:
-                                            </strong>
-
-                                            <div>
-                                                {getPropertyType(
-                                                    viewingProperty.propertyType
-                                                )}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-6">
-
-                                            <strong>
-                                                Listing Type:
-                                            </strong>
-
-                                            <div>
-                                                {getListingType(
-                                                    viewingProperty.listingType
-                                                )}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-6">
-
-                                            <strong>
-                                                Price:
-                                            </strong>
-
-                                            <div>
-                                                {formatPrice(
-                                                    viewingProperty.price
-                                                )}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-6">
-
-                                            <strong>
-                                                Area:
-                                            </strong>
-
-                                            <div>
-                                                {viewingProperty.areaSqft
-                                                    ? `${viewingProperty.areaSqft} sqft`
-                                                    : "-"}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-6">
-
-                                            <strong>
-                                                Bedrooms:
-                                            </strong>
-
-                                            <div>
-                                                {viewingProperty.bedrooms ??
-                                                    "-"}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-6">
-
-                                            <strong>
-                                                Bathrooms:
-                                            </strong>
-
-                                            <div>
-                                                {viewingProperty.bathrooms ??
-                                                    "-"}
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-12">
-
-                                            <strong>
-                                                Address:
-                                            </strong>
-
-                                            <div>
-                                                {
-                                                    viewingProperty.address
-                                                }
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-4">
-
-                                            <strong>
-                                                City:
-                                            </strong>
-
-                                            <div>
-                                                {
-                                                    viewingProperty.city
-                                                }
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-4">
-
-                                            <strong>
-                                                State:
-                                            </strong>
-
-                                            <div>
-                                                {
-                                                    viewingProperty.state
-                                                }
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-md-4">
-
-                                            <strong>
-                                                Pincode:
-                                            </strong>
-
-                                            <div>
-                                                {
-                                                    viewingProperty.pincode ||
-                                                    "-"
-                                                }
-                                            </div>
-
-                                        </div>
-
-                                        <div className="col-12">
-
-                                            <strong>
-                                                Dealer:
-                                            </strong>
-
-                                            <div>
-                                                {
-                                                    viewingProperty.dealer
-                                                        ?.name ||
-                                                    "-"
-                                                }
-                                            </div>
-
-                                            {viewingProperty.dealer
-                                                ?.email && (
-                                                <small className="text-muted">
-                                                    {
-                                                        viewingProperty
-                                                            .dealer
-                                                            .email
-                                                    }
-                                                </small>
-                                            )}
-
-                                        </div>
-
-                                        <div className="col-12">
-
-                                            <strong>
-                                                Amenities:
-                                            </strong>
-
-                                            <div className="mt-2">
-
-                                                {Array.isArray(
-                                                    viewingProperty.amenities
-                                                ) &&
-                                                viewingProperty
-                                                    .amenities
-                                                    .length > 0 ? (
-                                                    viewingProperty.amenities.map(
-                                                        (
-                                                            amenity,
-                                                            index
-                                                        ) => (
-                                                            <span
-                                                                key={
-                                                                    index
-                                                                }
-                                                                className="badge text-bg-light border me-2 mb-2"
-                                                            >
-                                                                {
-                                                                    amenity
-                                                                }
-                                                            </span>
-                                                        )
-                                                    )
-                                                ) : (
-                                                    <span className="text-muted">
-                                                        No amenities
-                                                        added.
-                                                    </span>
-                                                )}
-
-                                            </div>
-
-                                        </div>
-
+                                    <div className="alert alert-info">
+                                        New and edited properties are sent for admin approval.
+                                        You cannot set approval status yourself.
                                     </div>
 
+                                    <div className="row g-3">
+                                        {/* Basic details */}
+                                        <div className="col-12">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                Basic Property Details
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-md-8">
+                                            <label className="form-label">Title *</label>
+                                            <input
+                                                className="form-control"
+                                                name="title"
+                                                value={form.title}
+                                                onChange={changeForm}
+                                                maxLength="255"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Property Type *</label>
+                                            <select
+                                                className="form-select"
+                                                name="propertyType"
+                                                value={form.propertyType}
+                                                onChange={changeForm}
+                                                required
+                                            >
+                                                <option value="apartment">Apartment</option>
+                                                <option value="house">House</option>
+                                                <option value="plot">Plot</option>
+                                                <option value="commercial">Commercial</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Property Subtype</label>
+                                            <input
+                                                className="form-control"
+                                                name="propertySubType"
+                                                value={form.propertySubType}
+                                                onChange={changeForm}
+                                                placeholder="Villa, Independent House..."
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Listing Type *</label>
+                                            <select
+                                                className="form-select"
+                                                name="listingType"
+                                                value={form.listingType}
+                                                onChange={changeForm}
+                                                required
+                                            >
+                                                <option value="sale">Sale</option>
+                                                <option value="rent">Rent</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Transaction Type</label>
+                                            <select
+                                                className="form-select"
+                                                name="transactionType"
+                                                value={form.transactionType}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="New Property">New Property</option>
+                                                <option value="Resale">Resale</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Price and area */}
+                                        <div className="col-12 mt-4">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                Price and Area Details
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Actual Price (₹) *</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                className="form-control"
+                                                name="price"
+                                                value={form.price}
+                                                onChange={changeForm}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Price Breakup</label>
+                                            <input
+                                                className="form-control"
+                                                name="priceBreakup"
+                                                value={form.priceBreakup}
+                                                onChange={changeForm}
+                                                placeholder="₹1 Cr"
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Area (sqft)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                className="form-control"
+                                                name="areaSqft"
+                                                value={form.areaSqft}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Carpet Area (sqft)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                className="form-control"
+                                                name="carpetAreaSqft"
+                                                value={form.carpetAreaSqft}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Bedrooms</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="form-control"
+                                                name="bedrooms"
+                                                value={form.bedrooms}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Bathrooms</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="form-control"
+                                                name="bathrooms"
+                                                value={form.bathrooms}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Balconies</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="form-control"
+                                                name="balconies"
+                                                value={form.balconies}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        {/* Furnishing and construction */}
+                                        <div className="col-12 mt-4">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                Furnishing and Construction
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Furnishing</label>
+                                            <select
+                                                className="form-select"
+                                                name="furnishing"
+                                                value={form.furnishing}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="Furnished">Furnished</option>
+                                                <option value="Semi-Furnished">Semi-Furnished</option>
+                                                <option value="Unfurnished">Unfurnished</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Facing</label>
+                                            <select
+                                                className="form-select"
+                                                name="facing"
+                                                value={form.facing}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Select</option>
+                                                {["North", "South", "East", "West", "North-East", "North-West", "South-East", "South-West"].map((v) => (
+                                                    <option key={v} value={v}>{v}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Availability</label>
+                                            <select
+                                                className="form-select"
+                                                name="availability"
+                                                value={form.availability}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="Ready to Move">Ready to Move</option>
+                                                <option value="Under Construction">Under Construction</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Construction Age</label>
+                                            <input
+                                                className="form-control"
+                                                name="constructionAge"
+                                                value={form.constructionAge}
+                                                onChange={changeForm}
+                                                placeholder="New Construction, 5 years..."
+                                            />
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Ownership Type</label>
+                                            <select
+                                                className="form-select"
+                                                name="ownershipType"
+                                                value={form.ownershipType}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="Freehold">Freehold</option>
+                                                <option value="Leasehold">Leasehold</option>
+                                                <option value="Power of Attorney">Power of Attorney</option>
+                                                <option value="Co-operative Society">Co-operative Society</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Parking */}
+                                        <div className="col-12 mt-4">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                Parking Details
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Parking Spaces</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="form-control"
+                                                name="parkingSpaces"
+                                                value={form.parkingSpaces}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Parking Type</label>
+                                            <select
+                                                className="form-select"
+                                                name="parkingType"
+                                                value={form.parkingType}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="Open">Open</option>
+                                                <option value="Covered">Covered</option>
+                                                <option value="Both">Both</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Project and location */}
+                                        <div className="col-12 mt-4">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                Project and Location
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Project Name</label>
+                                            <input
+                                                className="form-control"
+                                                name="projectName"
+                                                value={form.projectName}
+                                                onChange={changeForm}
+                                                placeholder="Gillco Palm"
+                                            />
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Locality</label>
+                                            <input
+                                                className="form-control"
+                                                name="locality"
+                                                value={form.locality}
+                                                onChange={changeForm}
+                                                placeholder="Sector 115"
+                                            />
+                                        </div>
+
+                                        <div className="col-12">
+                                            <label className="form-label">Address *</label>
+                                            <textarea
+                                                className="form-control"
+                                                rows="2"
+                                                name="address"
+                                                value={form.address}
+                                                onChange={changeForm}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">City *</label>
+                                            <input
+                                                className="form-control"
+                                                name="city"
+                                                value={form.city}
+                                                onChange={changeForm}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">State *</label>
+                                            <input
+                                                className="form-control"
+                                                name="state"
+                                                value={form.state}
+                                                onChange={changeForm}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="col-md-4">
+                                            <label className="form-label">Pincode</label>
+                                            <input
+                                                className="form-control"
+                                                name="pincode"
+                                                value={form.pincode}
+                                                onChange={changeForm}
+                                                maxLength="20"
+                                            />
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Latitude</label>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                min="-90"
+                                                max="90"
+                                                className="form-control"
+                                                name="latitude"
+                                                value={form.latitude}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">Longitude</label>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                min="-180"
+                                                max="180"
+                                                className="form-control"
+                                                name="longitude"
+                                                value={form.longitude}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+
+                                        {/* RERA */}
+                                        <div className="col-12 mt-4">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                RERA Details
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">RERA Registered?</label>
+                                            <select
+                                                className="form-select"
+                                                name="reraRegistered"
+                                                value={form.reraRegistered}
+                                                onChange={changeForm}
+                                            >
+                                                <option value="">Not specified</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label">RERA Number</label>
+                                            <input
+                                                className="form-control"
+                                                name="reraNumber"
+                                                value={form.reraNumber}
+                                                onChange={changeForm}
+                                                placeholder="Enter RERA registration number"
+                                            />
+                                        </div>
+
+                                        {/* Other */}
+                                        <div className="col-12 mt-4">
+                                            <h6 className="fw-bold border-bottom pb-2">
+                                                Other Details
+                                            </h6>
+                                        </div>
+
+                                        <div className="col-12">
+                                            <label className="form-label">Amenities</label>
+                                            <input
+                                                className="form-control"
+                                                name="amenities"
+                                                value={form.amenities}
+                                                onChange={changeForm}
+                                                placeholder="Parking, Gym, Security"
+                                            />
+                                            <small className="text-muted">
+                                                Separate amenities with commas.
+                                            </small>
+                                        </div>
+
+                                        <div className="col-12">
+                                            <label className="form-label">Description</label>
+                                            <textarea
+                                                className="form-control"
+                                                rows="4"
+                                                name="description"
+                                                value={form.description}
+                                                onChange={changeForm}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="modal-footer">
-
                                     <button
                                         type="button"
                                         className="btn btn-secondary"
-                                        onClick={
-                                            closeViewModal
-                                        }
+                                        disabled={saving}
+                                        onClick={() => setShowForm(false)}
                                     >
-                                        Close
+                                        Cancel
                                     </button>
 
                                     <button
-                                        type="button"
+                                        type="submit"
                                         className="btn btn-primary"
-                                        onClick={() => {
-                                            closeViewModal();
-                                            openEditModal(
-                                                viewingProperty
-                                            );
-                                        }}
+                                        disabled={saving}
                                     >
-                                        Edit Property
+                                        {saving
+                                            ? "Saving..."
+                                            : editingId !== null
+                                            ? "Update Property"
+                                            : "Create Property"}
                                     </button>
-
                                 </div>
-
-                            </div>
-
+                            </form>
                         </div>
-
                     </div>
-                </>
+                </div>
             )}
 
+            {/* View Property Modal */}
+            {viewing && (
+                <div
+                    className="modal fade show d-block"
+                    role="dialog"
+                    aria-modal="true"
+                    tabIndex="-1"
+                    style={{ background: "rgba(0,0,0,0.5)", zIndex: 1055 }}
+                    onClick={() => setViewing(null)}
+                >
+                    <div
+                        className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Property Details</h5>
+                                <button
+                                    className="btn-close"
+                                    type="button"
+                                    onClick={() => setViewing(null)}
+                                />
+                            </div>
+
+                            <div className="modal-body">
+                                <div className="d-flex justify-content-between gap-3 mb-3">
+                                    <h4>{viewing.title}</h4>
+                                    {statusBadge(viewing.status)}
+                                </div>
+
+                                <p className="text-muted">
+                                    {viewing.description || "No description available."}
+                                </p>
+
+                                <div className="row g-3">
+                                    {detail("Property Type", propertyTypeLabel(viewing.propertyType))}
+                                    {detail("Subtype", viewing.propertySubType)}
+                                    {detail("Listing Type", viewing.listingType)}
+                                    {detail("Price", price(viewing.price))}
+                                    {detail("Price Breakup", viewing.priceBreakup)}
+                                    {detail("Area", viewing.areaSqft ? `${viewing.areaSqft} sqft` : "-")}
+                                    {detail("Carpet Area", viewing.carpetAreaSqft ? `${viewing.carpetAreaSqft} sqft` : "-")}
+                                    {detail("Bedrooms", viewing.bedrooms)}
+                                    {detail("Bathrooms", viewing.bathrooms)}
+                                    {detail("Balconies", viewing.balconies)}
+                                    {detail("Furnishing", viewing.furnishing)}
+                                    {detail("Facing", viewing.facing)}
+                                    {detail("Transaction Type", viewing.transactionType)}
+                                    {detail("Availability", viewing.availability)}
+                                    {detail("Construction Age", viewing.constructionAge)}
+                                    {detail("Ownership", viewing.ownershipType)}
+                                    {detail("Parking Spaces", viewing.parkingSpaces)}
+                                    {detail("Parking Type", viewing.parkingType)}
+                                    {detail("Project Name", viewing.projectName)}
+                                    {detail("Locality", viewing.locality)}
+                                    {detail("Address", viewing.address)}
+                                    {detail("City", viewing.city)}
+                                    {detail("State", viewing.state)}
+                                    {detail("Pincode", viewing.pincode)}
+                                    {detail("RERA Registered", viewing.reraRegistered === true ? "Yes" : viewing.reraRegistered === false ? "No" : "-")}
+                                    {detail("RERA Number", viewing.reraNumber)}
+                                    <div className="col-12">
+                                        <strong>Amenities:</strong>
+                                        <div>
+                                            {Array.isArray(viewing.amenities) && viewing.amenities.length
+                                                ? viewing.amenities.join(", ")
+                                                : "None"}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="modal-footer">
+                                <button
+                                    className="btn btn-secondary"
+                                    type="button"
+                                    onClick={() => setViewing(null)}
+                                >
+                                    Close
+                                </button>
+
+                                <button
+                                    className="btn btn-primary"
+                                    type="button"
+                                    onClick={() => {
+                                        const p = viewing;
+                                        setViewing(null);
+                                        openEdit(p);
+                                    }}
+                                >
+                                    Edit Property
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-export default AdminProperties;
+export default AgentProperties;

@@ -17,14 +17,9 @@ const LeftSidebar = () => {
     };
 
     const menuItems = [
-        {
-            label: "Dashboard",
-            path: "/admin",
-            icon: "bi-speedometer2",
-        },
-        {
+       {
             label: "Properties",
-            path: "/properties",
+            path: "/dashboard",
             icon: "bi-buildings",
         },
         {
@@ -32,12 +27,31 @@ const LeftSidebar = () => {
             path: "/leads",
             icon: "bi-people",
         },
-        {
-            label: "Users",
-            path: "/users",
-            icon: "bi-person-lines-fill",
-        },
-        
+    
+        // Role-based menu
+        ...(user.role === "admin"
+            ? [
+                  {
+                      label: "Users",
+                      path: "/users",
+                      icon: "bi-person-lines-fill",
+                  },
+              ]
+            : user.role === "agent"
+            ? [
+                  {
+                      label: "My Profile",
+                      path: "/my-profile",
+                      icon: "bi-person-circle",
+                  },
+              ]
+            : []),
+
+            {
+                label: "Setting",
+                path: "/setting",
+                icon: "bi-speedometer2",
+            },
     ];
 
     return (
@@ -54,7 +68,6 @@ const LeftSidebar = () => {
             }}
         >
 
-            {/* Brand */}
             <div className="p-3 border-bottom border-secondary">
 
                 <div className="d-flex align-items-center">
@@ -75,7 +88,7 @@ const LeftSidebar = () => {
                         </div>
 
                         <small className="text-secondary">
-                            Admin Panel
+                            Listing Panel
                         </small>
                     </div>
 
@@ -83,7 +96,6 @@ const LeftSidebar = () => {
 
             </div>
 
-            {/* Admin Information */}
             <div className="p-3 border-bottom border-secondary">
 
                 <div className="d-flex align-items-center">
@@ -107,7 +119,7 @@ const LeftSidebar = () => {
                         </div>
 
                         <small className="text-secondary">
-                            Administrator
+                        {user?.role || "Administrator"}
                         </small>
 
                     </div>
@@ -116,7 +128,6 @@ const LeftSidebar = () => {
 
             </div>
 
-            {/* Menu */}
             <div className="flex-grow-1 p-2">
 
                 <div className="text-uppercase text-secondary small px-3 py-2">

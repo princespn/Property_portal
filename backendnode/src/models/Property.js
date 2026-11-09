@@ -117,6 +117,105 @@ const Property = sequelize.define(
             allowNull: false,
             defaultValue: "pending_approval",
         },
+    
+    
+priceBreakup: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: "price_breakup",
+},
+
+// Property subtype: Villa, Independent House, etc.
+propertySubType: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: "property_sub_type",
+},
+
+// Project information
+projectName: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    field: "project_name",
+},
+
+locality: {
+    type: DataTypes.STRING(150),
+    allowNull: true,
+},
+
+// Area details
+carpetAreaSqft: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    field: "carpet_area_sqft",
+},
+
+// Property specifications
+balconies: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+},
+
+furnishing: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+},
+
+facing: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+},
+
+// Transaction and construction
+transactionType: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: "transaction_type",
+},
+
+availability: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+},
+
+constructionAge: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: "construction_age",
+},
+
+ownershipType: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: "ownership_type",
+},
+
+
+parkingSpaces: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: "parking_spaces",
+},
+
+parkingType: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    field: "parking_type",
+},
+
+
+reraRegistered: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    field: "rera_registered",
+},
+
+reraNumber: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: "rera_number",
+},
     },
     {
         tableName: "properties",

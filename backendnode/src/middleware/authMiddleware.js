@@ -1,9 +1,8 @@
 import User from "../models/User.js";
 import { verifyToken } from "../utils/jwt.js";
 
-/**
- * Authenticate logged-in user
- */
+
+
 export const authenticate = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -43,7 +42,7 @@ export const authenticate = async (req, res, next) => {
             });
         }
 
-        // Attach logged-in user to request
+        
         req.user = user;
 
         next();
@@ -58,13 +57,6 @@ export const authenticate = async (req, res, next) => {
 };
 
 
-/**
- * Generic role authorization
- *
- * Example:
- * allowRoles("admin")
- * allowRoles("agent", "dealer")
- */
 export const allowRoles = (...allowedRoles) => {
     return (req, res, next) => {
         if (!req.user) {
@@ -113,19 +105,6 @@ export const verifyDashboardAccess = allowRoles(
 );
 
 
-/**
- * Optional authentication
- *
- * User does NOT need to be logged in.
- *
- * If a valid token exists:
- *     req.user = user
- *
- * Otherwise:
- *     req.user remains undefined
- *
- * Request continues in both cases.
- */
 export const optionalAuth = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -155,8 +134,8 @@ export const optionalAuth = async (req, res, next) => {
             }
         }
     } catch (error) {
-        // Optional authentication should never block the request.
-    }
+        
+     }
 
     next();
 };

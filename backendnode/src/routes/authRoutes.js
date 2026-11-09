@@ -9,6 +9,10 @@ router.post("/register", authController.register);
 
 router.post("/login", authController.login);
 
-router.get("/me", authenticate, authController.me);
+router.get("/profile", authenticate, authController.me);
+
+router.get("/users", authenticate, authController.Alluser);
+
+
 
 export default router;

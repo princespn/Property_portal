@@ -12,8 +12,7 @@ const Users = () => {
                 setLoading(true);
                 setError("");
 
-                // Assumes your backend provides GET /api/v1/users
-                const response = await api.get("/users");
+                const response = await api.get("/auth/users");
 
                 const result = response.data.data;
                 setUsers(Array.isArray(result) ? result : result?.users ?? []);
@@ -57,8 +56,9 @@ const Users = () => {
                                     <th>ID</th>
                                     <th>Name</th>
                                     <th>Email</th>
+                                    <th>Status</th>
                                     <th>Role</th>
-                                    <th>Registered</th>
+                                    <th>Date</th>
                                 </tr>
                             </thead>
 
@@ -68,15 +68,18 @@ const Users = () => {
                                         <td>{user.id}</td>
                                         <td>{user.name}</td>
                                         <td>{user.email}</td>
+                                <td><span className={`badge ${user.is_active ? "bg-success" : "bg-danger"}`}>
+    {user.is_active ? "Active" : "Inactive"}</span></td>
+
                                         <td>
                                             <span className="badge text-bg-secondary">
                                                 {user.role || "user"}
                                             </span>
                                         </td>
                                         <td>
-                                            {user.createdAt
+                                            {user.created_at
                                                 ? new Date(
-                                                    user.createdAt
+                                                    user.created_at
                                                 ).toLocaleDateString()
                                                 : "-"}
                                         </td>

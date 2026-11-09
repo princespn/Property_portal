@@ -18,12 +18,10 @@ const AdminLayout = () => {
     return (
         <div className="container-fluid min-vh-100 bg-light p-0">
             <div className="row g-0 min-vh-100">
-                {/* Sidebar */}
                 <aside className="col-12 col-md-3 col-lg-2 bg-dark text-white p-3">
                     <Sidebar />
                 </aside>
 
-                {/* Main Content */}
                 <main className="col-12 col-md-9 col-lg-10">
                     {/* Header */}
                     <header className="d-flex justify-content-between align-items-center bg-white border-bottom px-3 px-md-4 py-3">
@@ -47,7 +45,6 @@ const AdminLayout = () => {
                         </button>
                     </header>
 
-                    {/* Page Content */}
                     <section className="container-fluid p-3 p-md-4">
                         <Outlet />
                     </section>

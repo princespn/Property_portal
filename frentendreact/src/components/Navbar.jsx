@@ -1,11 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 
-const Navbar = ({
-    onLogin,
-    onRegister,
-}) => {
-    const navigate = useNavigate();
+const Navbar = ({ onLogin,  onRegister }) => {
 
+    const navigate = useNavigate();
     const token = localStorage.getItem("node_ai_token");
 
     const logout = () => {
@@ -16,68 +13,88 @@ const Navbar = ({
     };
 
     return (
-        <nav className="navbar navbar-expand-lg bg-dark navbar-dark">
-
-            <div className="container">
-
-                <Link
-                    className="navbar-brand fw-bold"
-                    to="/"
-                >
-                    AI Lead Manager
-                </Link>
-
-                <div className="navbar-nav ms-auto">
-
+        <nav className="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+                <div className="container py-2">
                     <Link
-                        className="nav-link"
                         to="/"
+                        className="navbar-brand fw-bold fs-3 text-dark"
                     >
-                        Home
+                        <i className="bi bi-house-heart-fill text-danger me-2"></i>
+                        Glowbtech
                     </Link>
 
-                    {token ? (
-                        <>
-                            <Link
-                                className="nav-link"
-                                to="/dashboard"
+                    <button
+                        className="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#homeNavbar"
+                        aria-controls="homeNavbar"
+                        aria-expanded="false"
+                        aria-label="Toggle navigation"
+                    >
+                        <span className="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div
+                        className="collapse navbar-collapse"
+                        id="homeNavbar"
+                    >
+                        <ul className="navbar-nav mx-auto gap-lg-3">
+                            <li className="nav-item">
+                                <button
+                                    className="nav-link fw-semibold"
+                                    onClick={() => selectListingType("sale")}
+                                >
+                                    Buy
+                                </button>
+                            </li>
+
+                            <li className="nav-item">
+                                <button
+                                    className="nav-link fw-semibold"
+                                    onClick={() => selectListingType("rent")}
+                                >
+                                    Rent
+                                </button>
+                            </li>
+
+                            <li className="nav-item">
+                                <a
+                                    className="nav-link fw-semibold"
+                                    href="#property-search"
+                                >
+                                    Sell
+                                </a>
+                            </li>
+
+                            <li className="nav-item">
+                                <a
+                                    className="nav-link fw-semibold"
+                                    href="#properties"
+                                >
+                                    Properties
+                                </a>
+                            </li>
+                        </ul>
+
+                        <div className="d-flex flex-wrap align-items-center gap-2">
+                            <button
+                                className="btn btn-danger fw-semibold"
+                                onClick={onRegister}
                             >
-                                Dashboard
-                            </Link>
+                                Post Property Free
+                            </button>
 
                             <button
-                                type="button"
-                                className="btn btn-outline-light btn-sm ms-3"
-                                onClick={logout}
-                            >
-                                Logout
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                type="button"
-                                className="btn btn-link nav-link"
+                                className="btn btn-outline-dark"
                                 onClick={onLogin}
                             >
                                 Login
                             </button>
-
-                            <button
-                                type="button"
-                                className="btn btn-primary btn-sm ms-2"
-                                onClick={onRegister}
-                            >
-                                Register
-                            </button>
-                        </>
-                    )}
-
+                        </div>
+                    </div>
                 </div>
-
-            </div>
-
-        </nav>
+            </nav>
     );
 };
 

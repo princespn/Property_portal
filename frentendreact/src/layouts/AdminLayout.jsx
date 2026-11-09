@@ -45,22 +45,14 @@ const AdminLayout = () => {
 
                 </aside>
 
-                {/* =================================================
-                    MAIN CONTENT
-                ================================================== */}
-
+              
                 <main className="col-12 col-md-9 col-lg-10">
-
-                    {/* =================================================
-                        TOP HEADER
-                    ================================================== */}
-
                     <header className="d-flex justify-content-between align-items-center bg-white border-bottom px-3 px-md-4 py-3">
 
                         <div>
 
                             <h5 className="mb-0 fw-bold">
-                                Property Portal Admin
+                                Property Portal Listing
                             </h5>
 
                             <small className="text-muted">
@@ -80,11 +72,7 @@ const AdminLayout = () => {
 
                     </header>
 
-                    {/* =================================================
-                        PAGE CONTENT
-                    ================================================== */}
-
-                    <section className="container-fluid p-3 p-md-4">
+                  <section className="container-fluid p-3 p-md-4">
 
                         <Outlet />
 

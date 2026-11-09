@@ -32,9 +32,9 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Initialize Multer
+
 export const uploadPropertyImages = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per image
+    limits: { fileSize: 5 * 1024 * 1024 }, 
     fileFilter: fileFilter,
 });
